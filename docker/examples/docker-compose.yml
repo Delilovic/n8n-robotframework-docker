@@ -1,0 +1,69 @@
+# n8n with Robot Framework - Docker Compose Example
+#
+# Use this file to deploy n8n-robotframework on a server with Caddy as a
+# reverse proxy. Caddy automatically handles SSL certificates via Let's Encrypt.
+#
+# Required environment variables (set in .env file or export them):
+#   SUBDOMAIN     - Your subdomain (e.g., "n8n")
+#   DOMAIN_NAME   - Your domain (e.g., "example.com")
+#   DATA_FOLDER   - Path to store config files (e.g., "/opt/n8n")
+#   GENERIC_TIMEZONE - Timezone (e.g., "Europe/Berlin")
+#
+# Required files:
+#   ${DATA_FOLDER}/caddy_config/Caddyfile - Caddy configuration, example:
+#     ${SUBDOMAIN}.${DOMAIN_NAME} {
+#         reverse_proxy n8n:5678
+#     }
+#
+# Before starting, create external volumes:
+#   docker volume create caddy_data
+#   docker volume create n8n_data
+
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - ${DATA_FOLDER}/caddy_config:/config
+      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - n8n_network
+
+  n8n:
+    image: delilovic/n8n_robotframework:latest
+    restart: always
+    expose:
+      - 5678
+    environment:
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ${DATA_FOLDER}/local_files:/files
+    networks:
+      - n8n_network
+
+networks:
+  n8n_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+volumes:
+  caddy_data:
+    external: true
+  n8n_data:
+    external: true
