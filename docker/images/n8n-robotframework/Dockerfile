@@ -9,6 +9,7 @@ RUN apt-get update && \
     pip3 install --no-cache-dir --break-system-packages \
         robotframework==7.4.1 \
         robotframework-browser==19.12.3 \
+        robotframework-assertion-engine==3.1.3 \
         robotframework-jsonlibrary==0.5 && \
     npx playwright install-deps && \
     rfbrowser init
